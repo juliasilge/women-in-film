@@ -1,0 +1,77 @@
+---
+title: "Connecting scene direction to year and writer"
+author: "Julia Silge"
+date: '`r Sys.Date()`'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+knitr::opts_chunk$set(cache = TRUE, warning = FALSE, message = FALSE, 
+                      echo = FALSE, dpi = 360)
+options(width=80, dplyr.width = 150)
+library(ggplot2)
+library(silgelib)
+theme_set(theme_roboto())
+```
+
+## Reading in the data
+
+```{r pronoun_bigrams}
+library(tidyverse)
+library(tidytext)
+library(stringr)
+
+all_tsvs <- paste0("setDirections/", list.files(path = "setDirections/", pattern = ".tsv$"))
+
+pronoun_bigrams <- all_tsvs %>%
+    map_df(~data_frame(lines = read_lines(.x)) %>%
+               filter(str_detect(lines, "^[0-9]")) %>%
+               separate(lines, c("line", "text"), sep = "\t") %>%
+               mutate(scriptID = as.integer(str_extract(.x, "[\\d]+"))) %>%
+               unnest_tokens(bigram, text, token = "ngrams", 
+                             n = 2, collapse = FALSE) %>%
+               separate(bigram, c("word1", "word2"), sep = " ") %>%
+               filter(word1 %in% c("he", "she"))) %>%
+    select(scriptID, line, word1, word2)
+
+
+pronoun_bigrams
+```
+
+## Joining the bigrams to other metadata about the scripts
+
+
+```{r pronoun_imdb, dependson="pronoun_bigrams"}
+
+mapping <- read_csv("full_mapping.csv") %>%
+    rename(imdb = imdb_id)
+
+gender <- read_csv("gender.csv") %>%
+    filter(important == "1",
+           gender != "NULL")
+
+genre <- read_tsv("imdb-genre.tsv") %>%
+    rename(imdb = imdb_id)
+
+metadata <- read_tsv("imdb-meta-data-title.tsv") %>%
+    select(imdb, year) ## could also get title here if we want later
+
+pronoun_imdb <- pronoun_bigrams %>%
+    left_join(mapping, by = c("scriptID" = "id")) 
+```
+
+What kind of joining can I do? Year, genre, gender of writers/etc
+
+```{r, dependson="pronoun_imdb"}
+pronoun_imdb %>%
+    inner_join(metadata, by = "imdb") ## to get year
+
+pronoun_imdb %>%
+    inner_join(genre, by = "imdb") ## to get genre
+
+pronoun_imdb %>%
+    inner_join(gender, by = "imdb") ## to get gender of writers, etc
+
+```
+
