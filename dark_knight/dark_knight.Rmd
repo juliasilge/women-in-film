@@ -1,0 +1,79 @@
+---
+title: "Analyzing scene direction from *The Dark Knight*"
+author: "Julia Silge"
+date: '`r Sys.Date()`'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+knitr::opts_chunk$set(cache = TRUE, warning = FALSE, message = FALSE, 
+                      echo = FALSE, dpi = 360)
+options(width=80, dplyr.width = 150)
+library(ggplot2)
+library(silgelib)
+theme_set(theme_roboto())
+```
+
+
+```{r}
+library(tidyverse)
+library(tidytext)
+
+scene_direction <- read_tsv("set-directions.txt", 
+                            col_names = c("line", "text"))
+```
+
+
+
+```{r}
+bigrams <- scene_direction %>%
+    unnest_tokens(bigram, text, token = "ngrams", n = 2, collapse = FALSE)
+
+bigrams_separated <- bigrams %>%
+    separate(bigram, c("word1", "word2"), sep = " ")
+```
+
+
+```{r}
+pronoun_bigrams <- bigrams_separated %>%
+  filter(word1 %in% c("he", "she"))
+
+pronoun_bigrams
+```
+
+
+```{r dark_knight, fig.width=7, fig.height=6}
+pronoun_ratio <- pronoun_bigrams %>%
+  count(word1, word2) %>%
+  spread(word1, n, fill = 0) %>%
+  mutate(total = he + she,
+         he = (he + 1) / sum(he + 1),
+         she = (she + 1) / sum(she + 1),
+         logratio = log2(she / he)) %>%
+  arrange(desc(logratio))
+
+pronoun_ratio %>%
+    filter(total > 2) %>%
+    group_by(logratio < 0) %>%
+    top_n(15, abs(logratio)) %>%
+    ungroup() %>%
+    mutate(word = reorder(word2, logratio)) %>%
+    ggplot(aes(word, logratio, color = logratio < 0)) +
+    geom_segment(aes(x = word, xend = word,
+                     y = 0, yend = logratio), 
+                 size = 1.1, alpha = 0.6) +
+    geom_point(size = 3.5) +
+    coord_flip() +
+    labs(x = NULL, 
+         y = "Relative appearance after 'she' compared to 'he'",
+         title = "Words paired with 'he' and 'she' in The Dark Knight",
+         subtitle = "Men pull, smile, slam, walk; women open, stand, see") +
+    scale_color_discrete(name = "", labels = c("More 'she'", "More 'he'")) +
+    scale_y_continuous(breaks = seq(-3, 3),
+                       labels = c("0.125x", "0.25x", "0.5x", 
+                                  "Same", "2x", "4x", "8x"))
+```
+
+
+

@@ -1,0 +1,12 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+*.txt
+*.csv
+*.tsv
+.DS_Store
+*cache/
+*html
+setDirections/
+text/

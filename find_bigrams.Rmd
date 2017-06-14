@@ -1,0 +1,78 @@
+---
+title: "Analyzing scene direction from whole sample of movies"
+author: "Julia Silge"
+date: '`r Sys.Date()`'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+knitr::opts_chunk$set(cache = TRUE, warning = FALSE, message = FALSE, 
+                      echo = FALSE, dpi = 360)
+options(width=80, dplyr.width = 150)
+library(ggplot2)
+library(silgelib)
+theme_set(theme_roboto())
+```
+
+
+```{r pronoun_bigrams}
+library(tidyverse)
+library(tidytext)
+library(stringr)
+
+all_tsvs <- paste0("setDirections/", list.files(path = "setDirections/", pattern = ".tsv$"))
+
+pronoun_bigrams <- all_tsvs %>%
+    map_df(~data_frame(lines = read_lines(.)) %>%
+    filter(str_detect(lines, "^[0-9]")) %>%
+    separate(lines, c("line", "text"), sep = "\t") %>%
+    unnest_tokens(bigram, text, token = "ngrams", 
+                             n = 2, collapse = FALSE) %>%
+               separate(bigram, c("word1", "word2"), sep = " ") %>%
+               filter(word1 %in% c("he", "she")))
+    
+
+pronoun_bigrams
+```
+
+
+```{r pronoun_ratio, dependson="pronoun_bigrams", fig.width=7, fig.height=6}
+pronoun_ratio <- pronoun_bigrams %>%
+    count(word1, word2) %>%
+    spread(word1, n, fill = 0) %>%
+    mutate(total = he + she,
+           he = (he + 1) / sum(he + 1),
+           she = (she + 1) / sum(she + 1),
+           logratio = log2(she / he)) %>%
+    arrange(desc(logratio)) %>%
+    filter(!(word2 %in% c("door", "ad", "r", "e", "he", "dead", 
+                          "len", "queen", "lp", "room", "other", "two", "ar")))
+
+pronoun_ratio %>%
+    filter(total > 100) %>%
+    group_by(logratio < 0) %>%
+    top_n(15, abs(logratio)) %>%
+    ungroup() %>%
+    mutate(word = reorder(word2, logratio)) %>%
+    ggplot(aes(word, logratio, color = logratio < 0)) +
+    geom_segment(aes(x = word, xend = word,
+                     y = 0, yend = logratio), 
+                 size = 1.1, alpha = 0.6) +
+    geom_point(size = 3.5) +
+    coord_flip() +
+    labs(x = NULL, 
+         y = "Relative appearance after 'she' compared to 'he'",
+         title = "Words paired with 'he' and 'she' in film set directions",
+         subtitle = "From 3000+ films, verbs mentioned 100+ times") +
+    scale_color_discrete(name = "", labels = c("More 'she'", "More 'he'")) +
+    scale_y_continuous(breaks = seq(-3, 3),
+                       labels = c("0.125x", "0.25x", "0.5x", 
+                                  "Same", "2x", "4x", "8x"))
+
+pronoun_ratio %>%
+    filter(total > 10) %>%
+    mutate(freq = 2 ^ logratio) %>%
+    write_csv("~/Desktop/pronoun_word_ratios.csv")
+```
+
