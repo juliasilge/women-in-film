@@ -8,7 +8,7 @@ output: html_document
 ```{r setup, include=FALSE}
 library(knitr)
 knitr::opts_chunk$set(cache = TRUE, warning = FALSE, message = FALSE, 
-                      echo = FALSE, dpi = 360)
+                      echo = TRUE, dpi = 360)
 options(width=80, dplyr.width = 150)
 library(ggplot2)
 library(silgelib)
@@ -76,6 +76,7 @@ pronoun_imdb %>%
 
 ## Change by year
 
+We can use logistic regression modeling to find the words paired with "she" that have changed the fastest with time, either in a positive or negative direction.
 
 ```{r words_by_year, dependson="pronoun_imdb"}
 words_by_year <- pronoun_imdb %>%
@@ -143,4 +144,44 @@ words_by_year %>%
          subtitle = "In the past, women were more likely to jab, snuggle, fling, whirl, shriek")
 ```
 
+I'm picturing an interactive version of this chart where the user can switch from increasing to decreasing, hover over the lines to see how they are changing. Maybe decide how many to see?
 
+Let's check the words that change for "he", to compare. (This probably won't go into the final essay.)
+
+```{r words_by_year_he, dependson="pronoun_imdb"}
+words_by_year <- pronoun_imdb %>%
+    inner_join(metadata, by = "imdb") %>% ## to get year
+    filter(word1 == "he",
+           str_detect(word2, "[a-z]+"),
+           word2 != "look",
+           nchar(word2) > 2,
+           !is.na(year),
+           year > 1980) %>%
+    mutate(year = 5 * year %/% 5) %>%
+    add_count(year) %>%
+    rename(year_total = n) %>%
+    add_count(word2) %>%
+    rename(word_total = n) %>%
+    filter(word_total > 100) %>%
+    count(word2, year, year_total)
+
+slopes <- words_by_year %>%
+    nest(-word2) %>%
+    mutate(models = map(data, ~ glm(cbind(n, year_total) ~ year, ., 
+                                    family = "binomial"))) %>%
+    unnest(map(models, tidy)) %>%
+    filter(term == "year") %>%
+    arrange(estimate)
+
+# increasing for "he"
+slopes %>% 
+    top_n(10, estimate)
+
+# decreasing for "he"
+slopes %>% 
+    top_n(-10, estimate)
+```
+
+So the change in contractions looks like it is more about how set directions are changing as a whole, not a difference for how women are portrayed. For the final modeling by year, I'll plan to filter contractions out.
+
+Also, HA -- women are exhaling and men are inhaling.
