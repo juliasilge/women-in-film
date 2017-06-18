@@ -10,28 +10,6 @@ output: html_document
 ## Reading in the data
 
 
-```r
-library(tidyverse)
-library(tidytext)
-library(stringr)
-
-all_tsvs <- paste0("setDirections/", list.files(path = "setDirections/", pattern = ".tsv$"))
-
-pronoun_bigrams <- all_tsvs %>%
-    map_df(~data_frame(lines = read_lines(.x)) %>%
-               filter(str_detect(lines, "^[0-9]")) %>%
-               separate(lines, c("line", "text"), sep = "\t") %>%
-               mutate(scriptID = as.integer(str_extract(.x, "[\\d]+"))) %>%
-               unnest_tokens(bigram, text, token = "ngrams", 
-                             n = 2, collapse = FALSE) %>%
-               separate(bigram, c("word1", "word2"), sep = " ") %>%
-               filter(word1 %in% c("he", "she"))) %>%
-    select(scriptID, line, word1, word2)
-
-
-pronoun_bigrams
-```
-
 ```
 ## # A tibble: 1,201,303 x 4
 ##    scriptID  line word1    word2
@@ -53,149 +31,48 @@ pronoun_bigrams
 
 
 
-```r
-mapping <- read_csv("full_mapping.csv") %>%
-    rename(imdb = imdb_id)
-
-gender <- read_csv("gender.csv") %>%
-    filter(important == "1",
-           gender != "NULL")
-
-genre <- read_tsv("imdb-genre.tsv") %>%
-    rename(imdb = imdb_id)
-
-metadata <- read_tsv("imdb-meta-data-title.tsv") %>%
-    select(imdb, year) ## could also get title here if we want later
-
-pronoun_imdb <- pronoun_bigrams %>%
-    left_join(mapping, by = c("scriptID" = "id")) 
-```
-
-What kind of joining can I do? Year, genre, gender of writers/etc
 
 
-```r
-pronoun_imdb %>%
-    inner_join(genre, by = "imdb") ## to get genre
-```
+## Differences by gender of writer
+
+We can use the odds ratio to find words coming after "she" that are more likely to be used by female writers/directors/etc and those more likely to be used by male writers/directors/etc. Movies can have both, can have multiple writers and so forth, but the following analysis accounts for that.
+
+![plot of chunk gender_ratio](figure/gender_ratio-1.png)
+
+What are some words after "she" that have about the same likelihood to come from writers/directors/etc who are men and women?
+
 
 ```
-## # A tibble: 2,394,282 x 6
-##    scriptID  line word1 word2      imdb     Genre
-##       <int> <chr> <chr> <chr>     <chr>     <chr>
-##  1     1502   152    he  goes tt0453562 Biography
-##  2     1502   152    he  goes tt0453562     Drama
-##  3     1502   152    he  goes tt0453562     Sport
-##  4     1502   162    he tries tt0453562 Biography
-##  5     1502   162    he tries tt0453562     Drama
-##  6     1502   162    he tries tt0453562     Sport
-##  7     1502   165    he never tt0453562 Biography
-##  8     1502   165    he never tt0453562     Drama
-##  9     1502   165    he never tt0453562     Sport
-## 10     1502   664    he steps tt0453562 Biography
-## # ... with 2,394,272 more rows
+## # A tibble: 363 x 6
+##         word2 total       female         male     ratio     logratio
+##         <chr> <int>        <dbl>        <dbl>     <dbl>        <dbl>
+##  1      still   192 0.0013449170 0.0013439956 1.0006856  0.000988722
+##  2        and   435 0.0035893754 0.0035954237 0.9983178 -0.002428952
+##  3 approaches   278 0.0020833028 0.0020879692 0.9977651 -0.003227846
+##  4     drives   169 0.0014621211 0.0014583496 1.0025862  0.003726210
+##  5      tries   833 0.0096048757 0.0095734462 1.0032830  0.004728590
+##  6    thought    59 0.0003691929 0.0003679507 1.0033759  0.004862147
+##  7     brings   184 0.0013478471 0.0013527403 0.9963827 -0.005228069
+##  8    listens   227 0.0019074967 0.0018982761 1.0048573  0.006990707
+##  9        can   939 0.0135370731 0.0134702263 1.0049626  0.007141761
+## 10     didn't   114 0.0008673103 0.0008717809 0.9948719 -0.007417391
+## # ... with 353 more rows
 ```
 
-```r
-pronoun_imdb %>%
-    inner_join(gender, by = "imdb") ## to get gender of writers, etc
-```
-
-```
-## # A tibble: 5,563,413 x 10
-##    scriptID  line word1  word2      imdb     role       person_name gender    role_two important
-##       <int> <chr> <chr>  <chr>     <chr>    <chr>             <chr>  <chr>       <chr>     <chr>
-##  1     1498    69    he  comes tt0472033 director       Shane Acker   male         n/a         1
-##  2     1498    69    he  comes tt0472033   writer    Pamela Pettler female  screenplay         1
-##  3     1498    69    he  comes tt0472033   writer       Shane Acker   male       story         1
-##  4     1498    69    he  comes tt0472033 producer Timur Bekmambetov   male    producer         1
-##  5     1498    69    he  comes tt0472033 producer        Tim Burton   male    producer         1
-##  6     1498    69    he  comes tt0472033 producer     Dana Ginsburg female    producer         1
-##  7     1498    69    he  comes tt0472033 producer        Jim Lemley   male    producer         1
-##  8     1498    69    he  comes tt0472033 producer      Marci Levine female co-producer         1
-##  9     1498   103    he gently tt0472033 director       Shane Acker   male         n/a         1
-## 10     1498   103    he gently tt0472033   writer    Pamela Pettler female  screenplay         1
-## # ... with 5,563,403 more rows
-```
-
+Words like "still", "and", "drives", "tries", "brings", "listens"...
 
 ## Change by year
 
 We can use logistic regression modeling to find the words paired with "she" that have changed the fastest with time, either in a positive or negative direction.
 
 
-```r
-words_by_year <- pronoun_imdb %>%
-    inner_join(metadata, by = "imdb") %>% ## to get year
-    filter(word1 == "she",
-           str_detect(word2, "[a-z]+"),
-           word2 != "look",
-           nchar(word2) > 2,
-           !is.na(year),
-           year > 1980) %>%
-    mutate(year = 5 * year %/% 5) %>%
-    add_count(year) %>%
-    rename(year_total = n) %>%
-    add_count(word2) %>%
-    rename(word_total = n) %>%
-    filter(word_total > 50) %>%
-    count(word2, year, year_total)
 
-slopes <- words_by_year %>%
-    nest(-word2) %>%
-    mutate(models = map(data, ~ glm(cbind(n, year_total) ~ year, ., 
-                                    family = "binomial"))) %>%
-    unnest(map(models, tidy)) %>%
-    filter(term == "year") %>%
-    arrange(estimate)
-```
-
-
-
-```r
-words_by_year %>%
-    inner_join(slopes %>%
-                   top_n(10, estimate), 
-               by = "word2") %>%
-    ggplot(aes(year, n / year_total, color = word2)) +
-    geom_line(alpha = 0.8, size = 1.3) +
-    labs(x = NULL, y = "Word frequency",
-         title = "Words paired with 'she' in script set directions",
-         subtitle = "Many of the words increasing in frequency with time are negative contractions")
-```
 
 ![plot of chunk contractions](figure/contractions-1.png)
 
 
-
-```r
-words_by_year %>%
-    inner_join(slopes %>%
-                   filter(str_detect(word2, "^[^’]*$")) %>%
-                   top_n(10, estimate), 
-               by = "word2") %>%
-    ggplot(aes(year, n / year_total, color = word2)) +
-    geom_line(alpha = 0.8, size = 1.3) +
-    labs(x = NULL, y = "Word frequency",
-         title = "Words paired with 'she' in script set directions",
-         subtitle = "More recently, women are more likely to inspect, drift, steal, exhale,  breathe")
-```
-
 ![plot of chunk increasing](figure/increasing-1.png)
 
-
-
-```r
-words_by_year %>%
-    inner_join(slopes %>%
-                   top_n(-10, estimate), 
-               by = "word2") %>%
-    ggplot(aes(year, n / year_total, color = word2)) +
-    geom_line(alpha = 0.8, size = 1.3) +
-    labs(x = NULL, y = "Word frequency",
-         title = "Words paired with 'she' in script set directions",
-         subtitle = "In the past, women were more likely to jab, snuggle, fling, whirl, shriek")
-```
 
 ![plot of chunk decreasing](figure/decreasing-1.png)
 
@@ -203,36 +80,6 @@ I'm picturing an interactive version of this chart where the user can switch fro
 
 Let's check the words that change for "he", to compare. (This probably won't go into the final essay.)
 
-
-```r
-words_by_year <- pronoun_imdb %>%
-    inner_join(metadata, by = "imdb") %>% ## to get year
-    filter(word1 == "he",
-           str_detect(word2, "[a-z]+"),
-           word2 != "look",
-           nchar(word2) > 2,
-           !is.na(year),
-           year > 1980) %>%
-    mutate(year = 5 * year %/% 5) %>%
-    add_count(year) %>%
-    rename(year_total = n) %>%
-    add_count(word2) %>%
-    rename(word_total = n) %>%
-    filter(word_total > 100) %>%
-    count(word2, year, year_total)
-
-slopes <- words_by_year %>%
-    nest(-word2) %>%
-    mutate(models = map(data, ~ glm(cbind(n, year_total) ~ year, ., 
-                                    family = "binomial"))) %>%
-    unnest(map(models, tidy)) %>%
-    filter(term == "year") %>%
-    arrange(estimate)
-
-# increasing for "he"
-slopes %>% 
-    top_n(10, estimate)
-```
 
 ```
 ## # A tibble: 10 x 6
@@ -248,12 +95,6 @@ slopes %>%
 ##  8   doesn’t  year 0.16658435 0.004937153 33.740975 1.450089e-249
 ##  9     can’t  year 0.16802397 0.005833018 28.805663 1.821765e-182
 ## 10    hasn’t  year 0.16816630 0.014260869 11.792150  4.284630e-32
-```
-
-```r
-# decreasing for "he"
-slopes %>% 
-    top_n(-10, estimate)
 ```
 
 ```

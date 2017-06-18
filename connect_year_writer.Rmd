@@ -61,18 +61,59 @@ pronoun_imdb <- pronoun_bigrams %>%
     left_join(mapping, by = c("scriptID" = "id")) 
 ```
 
-What kind of joining can I do? Year, genre, gender of writers/etc
 
-```{r, dependson="pronoun_imdb"}
+## Differences by gender of writer
 
-pronoun_imdb %>%
-    inner_join(genre, by = "imdb") ## to get genre
+We can use the odds ratio to find words coming after "she" that are more likely to be used by female writers/directors/etc and those more likely to be used by male writers/directors/etc. Movies can have both, can have multiple writers and so forth, but the following analysis accounts for that.
 
-pronoun_imdb %>%
-    inner_join(gender, by = "imdb") ## to get gender of writers, etc
+```{r gender_ratio, dependson="pronoun_imdb", fig.width=7, fig.height=6}
+gender_ratio <- pronoun_imdb %>%
+    inner_join(gender, by = "imdb") %>% ## to get gender of writers, etc
+    filter(word1 == "she",
+           str_detect(word2, "[a-z]+"),
+           nchar(word2) > 2) %>%
+    group_by(word2) %>%
+    mutate(total = n_distinct(scriptID)) %>%
+    ungroup %>%
+    count(gender, word2, total) %>%
+    spread(gender, n, fill = 0) %>%
+    mutate(female = (female + 1) / sum(female + 1),
+           male = (male + 1) / sum(male + 1),
+           ratio = female / male,
+           logratio = log2(ratio)) %>%
+    arrange(desc(logratio))    
 
+
+gender_ratio %>%
+    filter(total > 50) %>%
+    group_by(logratio < 0) %>%
+    top_n(15, abs(logratio)) %>%
+    ungroup() %>%
+    mutate(word = reorder(word2, logratio)) %>%
+    ggplot(aes(word, ratio - 1, color = logratio < 0)) +
+    geom_segment(aes(x = word, xend = word,
+                     y = 0, yend = ratio - 1), 
+                 size = 1.1, alpha = 0.6) +
+    geom_point(size = 3.5) +
+    coord_flip() +
+    labs(x = NULL, 
+         y = "Relative use by women / men",
+         title = "Words paired with 'she' from writers/directors/etc of different genders",
+         subtitle = "From 4000+ films, verbs mentioned 50+ times\nWomen are more likely to portray women who write, fling, remember, wander\nMen are more likely to portray women who respond, emerge, believe, react") +
+    scale_color_discrete(name = "", labels = c("More from women", "More from men")) +
+    scale_y_continuous(breaks = c(-0.6, -0.4, -0.2, 0, 0.2, 0.4, 0.6, 0.8),
+                       labels = c("-60%", "-40%", "-20%", "Same", "+20%", "+40%", "+60%", "+80%"))
 ```
 
+What are some words after "she" that have about the same likelihood to come from writers/directors/etc who are men and women?
+
+```{r dependson="gender_ratio"}
+gender_ratio %>%
+    filter(total > 50) %>%
+    arrange(abs(logratio))
+```
+
+Words like "still", "and", "drives", "tries", "brings", "listens"...
 
 ## Change by year
 
