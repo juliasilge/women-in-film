@@ -82,6 +82,7 @@ words_by_year <- pronoun_imdb %>%
     inner_join(metadata, by = "imdb") %>% ## to get year
     filter(word1 == "she",
            str_detect(word2, "[a-z]+"),
+           word2 != "look",
            nchar(word2) > 2,
            !is.na(year),
            year > 1980) %>%
