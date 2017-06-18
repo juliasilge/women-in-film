@@ -1,7 +1,7 @@
 ---
 title: "Connecting scene direction to year and writer"
 author: "Julia Silge"
-date: '2017-06-13'
+date: '2017-06-17'
 output: html_document
 ---
 
@@ -36,23 +36,6 @@ What kind of joining can I do? Year, genre, gender of writers/etc
 
 
 ```
-## # A tibble: 1,200,671 x 6
-##    scriptID  line word1    word2      imdb  year
-##       <int> <chr> <chr>    <chr>     <chr> <int>
-##  1     1498    69    he    comes tt0472033  2009
-##  2     1498   103    he   gently tt0472033  2009
-##  3     1498   104    he    picks tt0472033  2009
-##  4     1498   109    he    faces tt0472033  2009
-##  5     1498   179    he  machine tt0472033  2009
-##  6     1498   184    he dictator tt0472033  2009
-##  7     1498   254    he       is tt0472033  2009
-##  8     1498   257    he   labels tt0472033  2009
-##  9     1498   257    he    makes tt0472033  2009
-## 10     1498   258    he  brushes tt0472033  2009
-## # ... with 1,200,661 more rows
-```
-
-```
 ## # A tibble: 2,394,282 x 6
 ##    scriptID  line word1 word2      imdb     Genre
 ##       <int> <chr> <chr> <chr>     <chr>     <chr>
@@ -85,4 +68,20 @@ What kind of joining can I do? Year, genre, gender of writers/etc
 ## 10     1498   103    he gently tt0472033   writer    Pamela Pettler female  screenplay         1
 ## # ... with 5,563,403 more rows
 ```
+
+
+## Change by year
+
+
+
+
+
+![plot of chunk contractions](figure/contractions-1.png)
+
+
+![plot of chunk increasing](figure/increasing-1.png)
+
+
+![plot of chunk decreasing](figure/decreasing-1.png)
+
 

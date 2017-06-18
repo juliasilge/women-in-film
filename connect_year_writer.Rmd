@@ -64,8 +64,6 @@ pronoun_imdb <- pronoun_bigrams %>%
 What kind of joining can I do? Year, genre, gender of writers/etc
 
 ```{r, dependson="pronoun_imdb"}
-pronoun_imdb %>%
-    inner_join(metadata, by = "imdb") ## to get year
 
 pronoun_imdb %>%
     inner_join(genre, by = "imdb") ## to get genre
@@ -74,4 +72,74 @@ pronoun_imdb %>%
     inner_join(gender, by = "imdb") ## to get gender of writers, etc
 
 ```
+
+
+## Change by year
+
+
+```{r words_by_year, dependson="pronoun_imdb"}
+words_by_year <- pronoun_imdb %>%
+    inner_join(metadata, by = "imdb") %>% ## to get year
+    filter(word1 == "she",
+           str_detect(word2, "[a-z]+"),
+           nchar(word2) > 2,
+           !is.na(year),
+           year > 1980) %>%
+    mutate(year = 5 * year %/% 5) %>%
+    add_count(year) %>%
+    rename(year_total = n) %>%
+    add_count(word2) %>%
+    rename(word_total = n) %>%
+    filter(word_total > 50) %>%
+    count(word2, year, year_total)
+
+slopes <- words_by_year %>%
+    nest(-word2) %>%
+    mutate(models = map(data, ~ glm(cbind(n, year_total) ~ year, ., 
+                                    family = "binomial"))) %>%
+    unnest(map(models, tidy)) %>%
+    filter(term == "year") %>%
+    arrange(estimate)
+```
+
+
+```{r contractions, dependson="words_by_year", fig.width=7, fig.height=5}
+words_by_year %>%
+    inner_join(slopes %>%
+                   top_n(10, estimate), 
+               by = "word2") %>%
+    ggplot(aes(year, n / year_total, color = word2)) +
+    geom_line(alpha = 0.8, size = 1.3) +
+    labs(x = NULL, y = "Word frequency",
+         title = "Words paired with 'she' in script set directions",
+         subtitle = "Many of the words increasing in frequency with time are negative contractions")
+```
+
+
+```{r increasing, dependson="words_by_year", fig.width=7, fig.height=5}
+words_by_year %>%
+    inner_join(slopes %>%
+                   filter(str_detect(word2, "^[^’]*$")) %>%
+                   top_n(10, estimate), 
+               by = "word2") %>%
+    ggplot(aes(year, n / year_total, color = word2)) +
+    geom_line(alpha = 0.8, size = 1.3) +
+    labs(x = NULL, y = "Word frequency",
+         title = "Words paired with 'she' in script set directions",
+         subtitle = "More recently, women are more likely to inspect, drift, steal, exhale,  breathe")
+```
+
+
+```{r decreasing, dependson="words_by_year", fig.width=7, fig.height=5}
+words_by_year %>%
+    inner_join(slopes %>%
+                   top_n(-10, estimate), 
+               by = "word2") %>%
+    ggplot(aes(year, n / year_total, color = word2)) +
+    geom_line(alpha = 0.8, size = 1.3) +
+    labs(x = NULL, y = "Word frequency",
+         title = "Words paired with 'she' in script set directions",
+         subtitle = "In the past, women were more likely to jab, snuggle, fling, whirl, shriek")
+```
+
 
