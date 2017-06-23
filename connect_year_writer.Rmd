@@ -24,20 +24,84 @@ library(stringr)
 
 all_tsvs <- paste0("setDirections/", list.files(path = "setDirections/", pattern = ".tsv$"))
 
-pronoun_bigrams <- all_tsvs %>%
+
+all_lines <- all_tsvs %>%
     map_df(~data_frame(lines = read_lines(.x)) %>%
                filter(str_detect(lines, "^[0-9]")) %>%
                separate(lines, c("line", "text"), sep = "\t") %>%
-               mutate(scriptID = as.integer(str_extract(.x, "[\\d]+"))) %>%
-               unnest_tokens(bigram, text, token = "ngrams", 
-                             n = 2, collapse = FALSE) %>%
-               separate(bigram, c("word1", "word2"), sep = " ") %>%
-               filter(word1 %in% c("he", "she"))) %>%
-    select(scriptID, line, word1, word2)
+               mutate(scriptID = as.integer(str_extract(.x, "[\\d]+"))))
 
+pronoun_bigrams <- all_lines %>%
+    unnest_tokens(bigram, text, token = "ngrams", 
+                  n = 2, collapse = FALSE) %>%
+    separate(bigram, c("word1", "word2"), sep = " ") %>%
+    filter(word1 %in% c("he", "she")) %>%
+    select(scriptID, line, word1, word2)
 
 pronoun_bigrams
 ```
+
+## Overall ratios
+
+```{r pronoun_ratio, dependson="pronoun_bigrams", fig.width=7, fig.height=6}
+pronoun_ratio <- pronoun_bigrams %>%
+    count(word1, word2) %>%
+    spread(word1, n, fill = 0) %>%
+    mutate(total = he + she,
+           he = (he + 1) / sum(he + 1),
+           she = (she + 1) / sum(she + 1),
+           logratio = log2(she / he)) %>%
+    arrange(desc(logratio)) %>%
+    filter(!(word2 %in% c("door", "ad", "r", "e", "he", "dead", 
+                          "len", "queen", "lp", "room", "other", "two", "ar")))
+
+pronoun_ratio %>%
+    filter(total > 100) %>%
+    group_by(logratio < 0) %>%
+    top_n(15, abs(logratio)) %>%
+    ungroup() %>%
+    mutate(word = reorder(word2, logratio)) %>%
+    ggplot(aes(word, logratio, color = logratio < 0)) +
+    geom_segment(aes(x = word, xend = word,
+                     y = 0, yend = logratio), 
+                 size = 1.1, alpha = 0.6) +
+    geom_point(size = 3.5) +
+    coord_flip() +
+    labs(x = NULL, 
+         y = "Relative appearance after 'she' compared to 'he'",
+         title = "Words paired with 'he' and 'she' in film set directions",
+         subtitle = "From 3000+ films, verbs mentioned 100+ times") +
+    scale_color_discrete(name = "", labels = c("More 'she'", "More 'he'")) +
+    scale_y_continuous(breaks = seq(-3, 3),
+                       labels = c("0.125x", "0.25x", "0.5x", 
+                                  "Same", "2x", "4x", "8x"))
+```
+
+Overall, we see that women are more likely to squeal, giggle and sob in these set directions, while men are more likely to shoot, kill, vault, and amble. With the particular filtering and cleaning used to make this plot, there are `r pronoun_ratio %>% filter(total > 100) %>% nrow()` words in the data set that we can measure a ratio for, from over 4 times for "squeals" on down. One option for a visualization would be something like [this](https://qz.com/836813/10000-words-ranked-according-to-trumpiness/) from Quartz. We could put all 800+ words into the visualization as circles, similar to that type of layout. We could label particularly interesting ones, as well as all the ones at the extremes.
+
+What types of words are equally likely to be paired with "he" and "she"?
+
+```{r dependson="pronoun_ratio"}
+pronoun_ratio %>%
+    filter(total > 100) %>%
+    arrange(abs(logratio))
+```
+
+Both men and women concentrate, prop things/themselves, finish, and "just" or "might" do something.
+
+Another interesting layer to add somehow would be some snippets of text to the visualization. For example, for "squeals", we can see some of the examples.
+
+```{r dependson="pronoun_ratio"}
+all_lines %>%
+    filter(str_detect(text, "She squeals")) %>%
+    distinct(scriptID, text) %>%
+    select(text) %>%
+    tail() %>%
+    kable()
+```
+
+
+Depending on the visual design, we could have *one* example text for each highlighted word perhaps, visible when the user hovers, or several that randomly switch? We could also include film title information there.
 
 ## Joining the bigrams to other metadata about the scripts
 
@@ -114,6 +178,8 @@ gender_ratio %>%
 ```
 
 Words like "still", "and", "drives", "tries", "brings", "listens"...
+
+We could make another visualization in the same style as the first one, but I worry that users may be confused since they are communicating different information. Maybe they should visually look quite different, perhaps bars for this one if we do circles for the first one. We could choose to only show the extremes here.
 
 ## Change by year
 

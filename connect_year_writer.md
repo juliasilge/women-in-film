@@ -1,7 +1,7 @@
 ---
 title: "Connecting scene direction to year and writer"
 author: "Julia Silge"
-date: '2017-06-17'
+date: '2017-06-22'
 output: html_document
 ---
 
@@ -26,6 +26,49 @@ output: html_document
 ## 10     1498   258    he  brushes
 ## # ... with 1,201,293 more rows
 ```
+
+## Overall ratios
+
+![plot of chunk pronoun_ratio](figure/pronoun_ratio-1.png)
+
+Overall, we see that women are more likely to squeal, giggle and sob in these set directions, while men are more likely to shoot, kill, vault, and amble. With the particular filtering and cleaning used to make this plot, there are 808 words in the data set that we can measure a ratio for, from over 4 times for "squeals" on down. One option for a visualization would be something like [this](https://qz.com/836813/10000-words-ranked-according-to-trumpiness/) from Quartz. We could put all 800+ words into the visualization as circles, similar to that type of layout. We could label particularly interesting ones, as well as all the ones at the extremes.
+
+What types of words are equally likely to be paired with "he" and "she"?
+
+
+```
+## # A tibble: 808 x 5
+##           word2           he          she total     logratio
+##           <chr>        <dbl>        <dbl> <dbl>        <dbl>
+##  1         just 3.593299e-03 3.589507e-03  4413 -0.001523369
+##  2       steels 8.467816e-05 8.448739e-05   102 -0.003253903
+##  3       hasn’t 1.926735e-04 1.931140e-04   235  0.003294883
+##  4         come 1.251764e-04 1.255241e-04   152  0.004001913
+##  5 concentrates 1.251764e-04 1.255241e-04   152  0.004001913
+##  6        props 1.251764e-04 1.255241e-04   152  0.004001913
+##  7     finishes 1.208811e-03 1.204549e-03  1482 -0.005096372
+##  8     grimaces 2.307173e-04 2.317368e-04   282  0.006361186
+##  9        might 1.121679e-03 1.127303e-03  1379  0.007215921
+## 10     suddenly 1.675155e-03 1.684920e-03  2061  0.008385527
+## # ... with 798 more rows
+```
+
+Both men and women concentrate, prop things/themselves, finish, and "just" or "might" do something.
+
+Another interesting layer to add somehow would be some snippets of text to the visualization. For example, for "squeals", we can see some of the examples.
+
+
+|text                                                           |
+|:--------------------------------------------------------------|
+|which is running the news with the sound muted. She squeals    |
+|He holds up a loli-pop. She squeals with delight.              |
+|spinning her around. She squeals, laughing. He kisses her.     |
+|She squeals with joy, runs to him, snatches one from his arms. |
+|which is running the news with the sound muted. She squeals    |
+|She squeals.  Business is over.  He carries her across         |
+
+
+Depending on the visual design, we could have *one* example text for each highlighted word perhaps, visible when the user hovers, or several that randomly switch? We could also include film title information there.
 
 ## Joining the bigrams to other metadata about the scripts
 
@@ -60,6 +103,8 @@ What are some words after "she" that have about the same likelihood to come from
 ```
 
 Words like "still", "and", "drives", "tries", "brings", "listens"...
+
+We could make another visualization in the same style as the first one, but I worry that users may be confused since they are communicating different information. Maybe they should visually look quite different, perhaps bars for this one if we do circles for the first one. We could choose to only show the extremes here.
 
 ## Change by year
 
