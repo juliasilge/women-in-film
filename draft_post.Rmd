@@ -1,0 +1,196 @@
+---
+title: "Women in Film"
+author: "Julia Silge"
+date: '`r Sys.Date()`'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(knitr)
+knitr::opts_chunk$set(cache = TRUE, warning = FALSE, message = FALSE, 
+                      echo = FALSE, dpi = 360)
+options(width=80, dplyr.width = 150)
+library(ggplot2)
+library(silgelib)
+theme_set(theme_roboto())
+```
+
+How are women portrayed in film? It's a complicated question, and that question might make you think of a male protagonist's romantic interest, or someone in trouble who needs to be rescued, or maybe Wonder Woman.
+
+One way to quantitatively measure how women are portrayed in film is to look at set directions in film scripts. Set directions, if you're not familiar with them, are the part of a script that are not dialogue. They describe actions and reactions, and communicate to the actors, producers, and director what story the script is working to tell. 
+
+
+```{r pronoun_bigrams}
+library(tidyverse)
+library(googlesheets)
+library(tidytext)
+library(stringr)
+
+public_scripts <- gs_title("Public Script Sources")
+script_sample <- public_scripts %>%
+    gs_read("public_scripts")
+
+all_tsvs <- paste0("setDirections/", list.files(path = "setDirections/", pattern = ".tsv$"))
+select_tsvs <- sort(paste0("setDirections/setDirections-", script_sample$script_id, ".tsv"))
+
+sample_tsvs <- intersect(all_tsvs, select_tsvs)
+
+all_lines <- sample_tsvs %>%
+    map_df(~data_frame(lines = read_lines(.x)) %>%
+               filter(str_detect(lines, "^[0-9]")) %>%
+               separate(lines, c("line", "text"), sep = "\t") %>%
+               mutate(scriptID = as.integer(str_extract(.x, "[\\d]+"))))
+
+pronoun_bigrams <- all_lines %>%
+    unnest_tokens(bigram, text, token = "ngrams", 
+                  n = 2, collapse = FALSE) %>%
+    separate(bigram, c("word1", "word2"), sep = " ") %>%
+    filter(word1 %in% c("he", "she")) %>%
+    select(scriptID, line, word1, word2) %>%
+    filter(!str_detect(word2, "’|'"))
+
+pronoun_bigrams
+```
+
+*Really rough mock-up of general idea for main viz:*
+
+```{r pronoun_ratio, dependson="pronoun_bigrams", fig.width=5, fig.height=10}
+pronoun_ratio <- pronoun_bigrams %>%
+    count(word1, word2) %>%
+    spread(word1, n, fill = 0) %>%
+    mutate(total = he + she,
+           he = (he + 1) / sum(he + 1),
+           she = (she + 1) / sum(she + 1),
+           logratio = log2(she / he)) %>%
+    arrange(desc(logratio)) %>%
+    filter(nchar(word2) > 1,
+           !(word2 %in% c("door", "ad", "he", "1s", "lp",
+                          "car", "himself", "pans", "dead")))
+
+library(ggbeeswarm)
+pronoun_ratio %>%
+    top_n(800, total) %>%
+    mutate(blank = "blank",
+           word = reorder(word2, logratio)) %>%
+    ggplot(aes(blank, logratio, label = word2)) +
+    geom_beeswarm(color = "midnightblue", alpha = 0.4) +
+    geom_text(family = "RobotoCondensed-Regular", size = 2.5, 
+              vjust = 1.2, hjust = 1.2,
+              check_overlap = TRUE) +
+    theme_void()
+
+pronoun_ratio %>%
+    top_n(800, total) %>%
+    mutate(freq = 2 ^ logratio) %>%
+    write_csv("~/Desktop/pronoun_word_ratios.csv")
+```
+
+*Label all the outlier points, choose interesting other points to label. For all labeled points, have example text for interactive hover. For non-labeled points, show word on hover.*
+
+
+```{r dependson="pronoun_ratio"}
+all_lines %>%
+    filter(str_detect(text, "She squeals")) %>%
+    distinct(scriptID, text) %>%
+    select(text) %>%
+    tail() %>%
+    kable()
+```
+
+
+
+```{r pronoun_imdb, dependson="pronoun_bigrams"}
+
+mapping <- read_csv("full_mapping.csv") %>%
+    rename(imdb = imdb_id)
+
+gender <- read_csv("gender.csv") %>%
+    filter(important == "1",
+           gender != "NULL")
+
+genre <- read_tsv("imdb-genre.tsv") %>%
+    rename(imdb = imdb_id)
+
+metadata <- read_tsv("imdb-meta-data-title.tsv") %>%
+    select(imdb, year) ## could also get title here if we want later
+
+pronoun_imdb <- pronoun_bigrams %>%
+    left_join(mapping, by = c("scriptID" = "id")) 
+```
+
+
+*Rough mockup for viz of writer/director viz*
+
+```{r gender_ratio, dependson="pronoun_imdb", fig.width=8, fig.height=8}
+library(viridis)
+
+she_gender_ratio <- pronoun_imdb %>%
+    inner_join(gender, by = "imdb") %>% ## to get gender of writers, etc
+    filter(word1 == "she",
+           str_detect(word2, "[a-z]+"),
+           nchar(word2) > 2) %>%
+    group_by(word2) %>%
+    mutate(total = n_distinct(scriptID)) %>%
+    ungroup %>%
+    count(gender, word2, total) %>%
+    spread(gender, n, fill = 0) %>%
+    mutate(female = (female + 1) / sum(female + 1),
+           male = (male + 1) / sum(male + 1),
+           she_ratio = female / male,
+           she_logratio = log2(she_ratio)) %>%
+    arrange(desc(she_logratio))
+
+he_gender_ratio <- pronoun_imdb %>%
+    inner_join(gender, by = "imdb") %>% ## to get gender of writers, etc
+    filter(word1 == "he",
+           str_detect(word2, "[a-z]+"),
+           nchar(word2) > 2) %>%
+    group_by(word2) %>%
+    mutate(total = n_distinct(scriptID)) %>%
+    ungroup %>%
+    count(gender, word2, total) %>%
+    spread(gender, n, fill = 0) %>%
+    mutate(female = (female + 1) / sum(female + 1),
+           male = (male + 1) / sum(male + 1),
+           he_ratio = female / male,
+           he_logratio = log2(he_ratio)) %>%
+    arrange(desc(he_logratio))
+
+
+she_gender_ratio %>%
+    select(word2, she_ratio, she_logratio, she_total = total) %>%
+    left_join(he_gender_ratio %>%
+                  select(word2, he_ratio, he_logratio, he_total = total)) %>%
+    top_n(300, she_total) %>%
+    ggplot(aes(she_logratio, he_logratio, label = word2,
+               size = (she_total + he_total),
+               color = she_ratio / he_ratio)) +
+    annotate("text", x = 0.8, y = 0.8,
+             label = "Male and female writers\ndescribing women",
+             family = "RobotoCondensed-Regular") +
+    annotate("text", x = -0.8, y = -0.8,
+             label = "Male and female writers\ndescribing men",
+             family = "RobotoCondensed-Regular") +
+     annotate("text", x = 0.8, y = -0.8,
+             label = "Female writers describing women\nMale writers decribing men",
+             family = "RobotoCondensed-Regular") +
+     annotate("text", x = -0.8, y = 0.8,
+             label = "Female writers describing men\nMale writers decribing women",
+             family = "RobotoCondensed-Regular") +
+   geom_vline(xintercept = 0, color = "gray50", lty = 2, size = 1.5) +
+    geom_hline(yintercept = 0, color = "gray50", lty = 2, size = 1.5) +
+    geom_text(family = "RobotoCondensed-Regular", size = 3, 
+              vjust = 1.2, hjust = 1.2,
+              check_overlap = TRUE) +
+    geom_point(alpha = 0.5) +
+    theme_void() +
+    scale_y_continuous(limits = c(-1.1, 1.1)) +
+    scale_x_continuous(limits = c(-1.1, 1.1)) +
+    scale_color_viridis(end = 0.8) +
+    theme(legend.position="none")
+
+
+```
+
+*Hover for word for all points*
+
