@@ -15,12 +15,12 @@ library(silgelib)
 theme_set(theme_roboto())
 ```
 
-How are women portrayed in film? It's a complicated question, and that question might make you think of a male protagonist's romantic interest, or someone in trouble who needs to be rescued, or maybe Wonder Woman.
+How are women portrayed in film? It's complicated; the question might make you think of a male protagonist's romantic interest, someone in trouble who needs to be rescued, or maybe Wonder Woman.
 
-One way to quantitatively measure how women are portrayed in film is to look at set directions in film scripts. Set directions, if you're not familiar with them, are the part of a script that are not dialogue. They describe actions and reactions, and communicate to the actors, producers, and director what story the script is working to tell. 
+One way to quantitatively measure how women are portrayed in film is to look at scene directions in film scripts. Set directions, if you're not familiar with them, are the part of a script that are not dialogue. They describe actions and reactions, and communicate to the actors, producers, and director what story the script is working to tell. 
 
 
-```{r pronoun_bigrams}
+```{r pronoun_bigrams, echo=FALSE}
 library(tidyverse)
 library(googlesheets)
 library(tidytext)
@@ -28,7 +28,7 @@ library(stringr)
 
 public_scripts <- gs_title("Public Script Sources")
 script_sample <- public_scripts %>%
-    gs_read("public_scripts")
+    gs_read("public_scripts", verbose = FALSE)
 
 all_tsvs <- paste0("setDirections/", list.files(path = "setDirections/", pattern = ".tsv$"))
 select_tsvs <- sort(paste0("setDirections/setDirections-", script_sample$script_id, ".tsv"))
@@ -48,13 +48,11 @@ pronoun_bigrams <- all_lines %>%
     filter(word1 %in% c("he", "she")) %>%
     select(scriptID, line, word1, word2) %>%
     filter(!str_detect(word2, "’|'"))
-
-pronoun_bigrams
 ```
 
 *Really rough mock-up of general idea for main viz:*
 
-```{r pronoun_ratio, dependson="pronoun_bigrams", fig.width=5, fig.height=10}
+```{r pronoun_ratio, echo = FALSE, dependson="pronoun_bigrams", fig.width=5, fig.height=10}
 pronoun_ratio <- pronoun_bigrams %>%
     count(word1, word2) %>%
     spread(word1, n, fill = 0) %>%
@@ -87,8 +85,9 @@ pronoun_ratio %>%
 
 *Label all the outlier points, choose interesting other points to label. For all labeled points, have example text for interactive hover. For non-labeled points, show word on hover.*
 
+Example text snippets for "she squeals":
 
-```{r dependson="pronoun_ratio"}
+```{r, echo = FALSE, dependson="pronoun_ratio"}
 all_lines %>%
     filter(str_detect(text, "She squeals")) %>%
     distinct(scriptID, text) %>%
@@ -99,7 +98,7 @@ all_lines %>%
 
 
 
-```{r pronoun_imdb, dependson="pronoun_bigrams"}
+```{r pronoun_imdb, echo = FALSE, dependson="pronoun_bigrams"}
 
 mapping <- read_csv("full_mapping.csv") %>%
     rename(imdb = imdb_id)
@@ -119,9 +118,11 @@ pronoun_imdb <- pronoun_bigrams %>%
 ```
 
 
+## Impact of producers, writers, and directors
+
 *Rough mockup for viz of writer/director viz*
 
-```{r gender_ratio, dependson="pronoun_imdb", fig.width=8, fig.height=8}
+```{r gender_ratio, echo = FALSE, dependson="pronoun_imdb", fig.width=8, fig.height=8}
 library(viridis)
 
 she_gender_ratio <- pronoun_imdb %>%
@@ -166,16 +167,16 @@ she_gender_ratio %>%
                size = (she_total + he_total),
                color = she_ratio / he_ratio)) +
     annotate("text", x = 0.8, y = 0.8,
-             label = "Male and female writers\ndescribing women",
+             label = "Male and female creators\ndescribing women",
              family = "RobotoCondensed-Regular") +
     annotate("text", x = -0.8, y = -0.8,
-             label = "Male and female writers\ndescribing men",
+             label = "Male and female creators\ndescribing men",
              family = "RobotoCondensed-Regular") +
      annotate("text", x = 0.8, y = -0.8,
-             label = "Female writers describing women\nMale writers decribing men",
+             label = "Female creators describing women\nMale creators decribing men",
              family = "RobotoCondensed-Regular") +
      annotate("text", x = -0.8, y = 0.8,
-             label = "Female writers describing men\nMale writers decribing women",
+             label = "Female creators describing men\nMale creators decribing women",
              family = "RobotoCondensed-Regular") +
    geom_vline(xintercept = 0, color = "gray50", lty = 2, size = 1.5) +
     geom_hline(yintercept = 0, color = "gray50", lty = 2, size = 1.5) +
@@ -194,3 +195,138 @@ she_gender_ratio %>%
 
 *Hover for word for all points*
 
+## Word use changing with time
+
+```{r changing_women, echo = FALSE, dependson="pronoun_imdb", fig.width=8, fig.height=6}
+library(ggrepel)
+words_by_year <- pronoun_imdb %>%
+    inner_join(metadata, by = "imdb") %>% ## to get year
+    filter(word1 == "she",
+           str_detect(word2, "[a-z]+"),
+           !(word2 %in% c("look", "doesn")),
+           nchar(word2) > 2,
+           !is.na(year),
+           year > 1980) %>%
+    mutate(year = 5 * year %/% 5) %>%
+    add_count(year) %>%
+    rename(year_total = n) %>%
+    add_count(word2) %>%
+    rename(word_total = n) %>%
+    filter(word_total > 50) %>%
+    count(word2, year, year_total)
+
+slopes <- words_by_year %>%
+    nest(-word2) %>%
+    mutate(models = map(data, ~ glm(cbind(n, year_total) ~ year, ., 
+                                    family = "binomial"))) %>%
+    unnest(map(models, tidy)) %>%
+    filter(term == "year") %>%
+    arrange(estimate)
+
+plot_words <- words_by_year %>%
+    inner_join(slopes %>%
+                   top_n(10, estimate), 
+               by = "word2") %>%
+    mutate(year = 10 * year %/% 10) %>%
+    filter(year %in% c(1980, 2010)) %>%
+    group_by(word2, year) %>%
+    summarise(n = sum(n),
+              total = sum(year_total)) %>%
+    mutate(Change = "Increasing") %>%
+    bind_rows(words_by_year %>%
+                  inner_join(slopes %>%
+                                 top_n(-10, estimate), 
+                             by = "word2") %>%
+                  mutate(year = 10 * year %/% 10) %>%
+                  filter(year %in% c(1980, 2010)) %>%
+                  group_by(word2, year) %>%
+                  summarise(n = sum(n),
+                            total = sum(year_total)) %>%
+                  mutate(Change = "Decreasing")) %>% 
+    ungroup
+
+ggplot(plot_words, aes(year, n / total, color = word2)) +
+    geom_line(size = 1.5, alpha = 0.5) +
+    geom_point(size = 4) +
+    geom_text_repel(data = subset(plot_words, year == 1980 & Change == "Decreasing"),
+                  aes(x = year, y = n / total, label = word2),
+                  color = "gray20", family = "RobotoCondensed-Regular",
+                  point.padding = unit(0.4, "lines")) +
+    geom_text_repel(data = subset(plot_words, year == 2010 & Change == "Increasing"),
+                  aes(x = year, y = n / total, label = word2),
+                  color = "gray20", family = "RobotoCondensed-Regular",
+                  point.padding = unit(0.4, "lines")) +
+    theme(legend.position="none") +
+    facet_wrap(~Change, ncol = 2) +
+    labs(x = NULL, y = "Word frequency",
+         title = "Words paired with 'she' in script set directions")
+```
+
+
+```{r changing_men, echo = FALSE, dependson="pronoun_imdb", fig.width=8, fig.height=6}
+library(ggrepel)
+words_by_year <- pronoun_imdb %>%
+    inner_join(metadata, by = "imdb") %>% ## to get year
+    filter(word1 == "he",
+           str_detect(word2, "[a-z]+"),
+           !(word2 %in% c("look", "doesn", "were", 
+                          "too", "see", "doing", "going")),
+           nchar(word2) > 2,
+           !is.na(year),
+           year > 1980) %>%
+    mutate(year = 5 * year %/% 5) %>%
+    add_count(year) %>%
+    rename(year_total = n) %>%
+    add_count(word2) %>%
+    rename(word_total = n) %>%
+    filter(word_total > 50) %>%
+    count(word2, year, year_total)
+
+slopes <- words_by_year %>%
+    nest(-word2) %>%
+    mutate(models = map(data, ~ glm(cbind(n, year_total) ~ year, ., 
+                                    family = "binomial"))) %>%
+    unnest(map(models, tidy)) %>%
+    filter(term == "year") %>%
+    arrange(estimate)
+
+plot_words <- words_by_year %>%
+    inner_join(slopes %>%
+                   top_n(10, estimate), 
+               by = "word2") %>%
+    mutate(year = 10 * year %/% 10) %>%
+    filter(year %in% c(1980, 2010)) %>%
+    group_by(word2, year) %>%
+    summarise(n = sum(n),
+              total = sum(year_total)) %>%
+    mutate(Change = "Increasing") %>%
+    bind_rows(words_by_year %>%
+                  inner_join(slopes %>%
+                                 top_n(-10, estimate), 
+                             by = "word2") %>%
+                  mutate(year = 10 * year %/% 10) %>%
+                  filter(year %in% c(1980, 2010)) %>%
+                  group_by(word2, year) %>%
+                  summarise(n = sum(n),
+                            total = sum(year_total)) %>%
+                  mutate(Change = "Decreasing")) %>% 
+    ungroup
+
+ggplot(plot_words, aes(year, n / total, color = word2)) +
+    geom_line(size = 1.5, alpha = 0.5) +
+    geom_point(size = 4) +
+    geom_text_repel(data = subset(plot_words, year == 1980 & Change == "Decreasing"),
+                  aes(x = year, y = n / total, label = word2),
+                  color = "gray20", family = "RobotoCondensed-Regular",
+                  point.padding = unit(0.4, "lines")) +
+    geom_text_repel(data = subset(plot_words, year == 2010 & Change == "Increasing"),
+                  aes(x = year, y = n / total, label = word2),
+                  color = "gray20", family = "RobotoCondensed-Regular",
+                  point.padding = unit(0.4, "lines")) +
+    theme(legend.position="none") +
+    facet_wrap(~Change, ncol = 2) +
+    labs(x = NULL, y = "Word frequency",
+         title = "Words paired with 'he' in script set directions")
+```
+
+*interactively switch from men to women, increasing to decreasing*
