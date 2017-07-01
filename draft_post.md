@@ -9,7 +9,9 @@ output: html_document
 
 How are women portrayed in film? It's complicated; the question might make you think of a male protagonist's romantic interest, someone in trouble who needs to be rescued, or maybe Wonder Woman.
 
-One way to quantitatively measure how women are portrayed in film is to look at scene directions in film scripts. Set directions, if you're not familiar with them, are the part of a script that are not dialogue. They describe actions and reactions, and communicate to the actors, producers, and director what story the script is working to tell. 
+One way to quantitatively measure how women are portrayed in film is to look at scene directions in film scripts. Scene directions are the part of a script that are not dialogue, describing what's happening on screen and telling actors how to move and how to deliver their lines. These scene directions communicate to the actors, producers, and director what story the script is working to tell. 
+
+
 
 
 
