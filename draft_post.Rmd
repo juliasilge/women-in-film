@@ -19,7 +19,7 @@ How are women portrayed in film? It's complicated; the question might make you t
 
 One way to quantitatively measure how women are portrayed in film is to look at scene directions in film scripts. Scene directions are the part of a script that are not dialogue, describing what's happening on screen and telling actors how to move and how to deliver their lines. These scene directions communicate to the actors, producers, and director what story the script is working to tell. 
 
-
+In this analysis, we found words that were paired with the pronouns "he" and "she" in these scene directions, then analyzed which words were more likely to come after one compared to the other. Which words are more likely to be used with "she" in film script scene directions compared to those used with "he"? Let's look at the top 800 words.
 
 
 ```{r pronoun_bigrams, echo=FALSE}
@@ -121,6 +121,12 @@ pronoun_imdb <- pronoun_bigrams %>%
 
 
 ## Impact of producers, writers, and directors
+
+Hollywood can be a tough place to work as a creative woman, writing, directing, or producing films. We can use our text mining approach to explore the impact that the gender of a creator has on how characters are portrayed. We used IMDB biographies, pictures, and names to manually classify the genders of writers, directors, and producers for our film script dataset. 
+
+Gender can be a complicated identification for people, but English just has two singular third person pronouns traditionally used for people, "he" and "she". In this analysis, for both the text data and the identification of gender for film creators, we have chosen to identify men and women with the pronouns "he" and "she". Using this type of classification, a transgender woman (either a writer/director/producer or a character in a script) described with the pronoun "she" would be classified as a woman.
+
+Using these connections to who had a hand in creating
 
 *Rough mockup for viz of writer/director viz*
 
