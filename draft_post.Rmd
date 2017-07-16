@@ -15,11 +15,11 @@ library(silgelib)
 theme_set(theme_roboto())
 ```
 
-How are women portrayed in film? It's complicated; the question might make you think of a male protagonist's romantic interest, someone in trouble who needs to be rescued, or maybe Wonder Woman.
+How are women portrayed in film? It's complicated; that question might make you think of a male protagonist's romantic interest, a damsel in distress who needs to be rescued, or maybe Wonder Woman.
 
 One way to quantitatively measure how women are portrayed in film is to look at scene directions in film scripts. Scene directions are the part of a script that are not dialogue, describing what's happening on screen and telling actors how to move and how to deliver their lines. These scene directions communicate to the actors, producers, and director what story the script is working to tell. 
 
-In this analysis, we found words that were paired with the pronouns "he" and "she" in these scene directions, then analyzed which words were more likely to come after one compared to the other. Which words are more likely to be used with "she" in film script scene directions compared to those used with "he"? Let's look at the top 800 words.
+In this analysis, we used text mining to identify words that are paired with the pronouns "he" and "she" in scene directions for over 2000 film scripts for movies released from the 1930s to today. We then analyzed which words are more likely to come after one compared to the other. Which words are most likely to be used with "she" in film script scene directions compared to those used with "he"? 
 
 
 ```{r pronoun_bigrams, echo=FALSE}
@@ -29,8 +29,15 @@ library(tidytext)
 library(stringr)
 
 public_scripts <- gs_title("Public Script Sources")
-script_sample <- public_scripts %>%
+raw_script_sample <- public_scripts %>%
     gs_read("public_scripts", verbose = FALSE)
+
+new_ids <- read_csv("missing_scripts.csv")
+
+script_sample <- raw_script_sample %>% 
+    left_join(new_ids, by = c("script_id" = "missing_script_id",
+                                            "imdb_id")) %>%
+    mutate(script_id = ifelse(is.na(different_script_id), script_id, different_script_id))
 
 all_tsvs <- paste0("setDirections/", list.files(path = "setDirections/", pattern = ".tsv$"))
 select_tsvs <- sort(paste0("setDirections/setDirections-", script_sample$script_id, ".tsv"))
@@ -52,9 +59,7 @@ pronoun_bigrams <- all_lines %>%
     filter(!str_detect(word2, "’|'"))
 ```
 
-*Really rough mock-up of general idea for main viz:*
-
-```{r pronoun_ratio, echo = FALSE, dependson="pronoun_bigrams", fig.width=5, fig.height=10}
+```{r pronoun_ratio, echo = FALSE, dependson="pronoun_bigrams", fig.width=8, fig.height=8}
 pronoun_ratio <- pronoun_bigrams %>%
     count(word1, word2) %>%
     spread(word1, n, fill = 0) %>%
@@ -65,8 +70,39 @@ pronoun_ratio <- pronoun_bigrams %>%
     arrange(desc(logratio)) %>%
     filter(nchar(word2) > 1,
            !(word2 %in% c("door", "ad", "he", "1s", "lp",
-                          "car", "himself", "pans", "dead")))
+                          "car", "himself", "pans", "dead", 
+                          "queen", "back", "too", "were")))
 
+pronoun_ratio %>%
+    top_n(800, total) %>%
+    group_by(logratio < 0) %>%
+    top_n(15, abs(logratio)) %>%
+    ungroup() %>%
+    mutate(word = reorder(word2, logratio)) %>%
+    ggplot(aes(word, logratio, color = logratio < 0)) +
+    geom_segment(aes(x = word, xend = word,
+                     y = 0, yend = logratio), 
+                 size = 1.1, alpha = 0.6) +
+    geom_point(size = 3.5) +
+    coord_flip() +
+    labs(x = NULL, 
+         y = "Relative appearance after 'she' compared to 'he'",
+         title = "Words paired with 'he' and 'she' in film set directions",
+         subtitle = "From ~2000 films, of the top 800 words") +
+    scale_color_discrete(name = "", labels = c("More 'she'", "More 'he'")) +
+    scale_y_continuous(breaks = seq(-3, 3),
+                       labels = c("0.125x", "0.25x", "0.5x", 
+                                  "Same", "2x", "4x", "8x"))    
+
+```
+
+There are dramatic differences in the kinds of words we see here. In movies, women are more likely to snuggle, giggle, squeal, and sob while men are more likely to gallop, shoot, howl, and kill. We see evidence here of the tropes and storytelling conventions that propel so many films, and how men, women, and their relationships are often portrayed.
+
+Now let's look at the top 800 words, including those that are used about evenly after "he" and "she".
+
+*Really rough mock-up of general idea for main viz:*
+
+```{r pronoun_circles, echo = FALSE, dependson="pronoun_ratio", fig.width=5, fig.height=10}
 library(ggbeeswarm)
 pronoun_ratio %>%
     top_n(800, total) %>%
@@ -82,7 +118,7 @@ pronoun_ratio %>%
 pronoun_ratio %>%
     top_n(800, total) %>%
     mutate(freq = 2 ^ logratio) %>%
-    write_csv("~/Desktop/pronoun_word_ratios.csv")
+    write_csv("pronoun_word_ratios.csv")
 ```
 
 *Label all the outlier points, choose interesting other points to label. For all labeled points, have example text for interactive hover. For non-labeled points, show word on hover.*
@@ -125,16 +161,12 @@ pronoun_imdb <- pronoun_bigrams %>%
 
 *Rough mockup for viz of writer viz*
 
-<<<<<<< HEAD
-=======
-Hollywood can be a tough place to work as a creative woman, writing, directing, or producing films. We can use our text mining approach to explore the impact that the gender of a creator has on how characters are portrayed. We used IMDB biographies, pictures, and names to manually classify the genders of writers, directors, and producers for our film script dataset. 
+Hollywood can be a tough place to work as a creative woman, either writing, directing, or producing films. We can use our text mining approach to explore the impact that the gender of a writer has on how characters are portrayed. We used IMDB biographies, pictures, and names to manually classify the genders of writers for our film script dataset. 
 
-Gender can be a complicated identification for people, but English just has two singular third person pronouns traditionally used for people, "he" and "she". In this analysis, for both the text data and the identification of gender for film creators, we have chosen to identify men and women with the pronouns "he" and "she". Using this type of classification, a transgender woman (either a writer/director/producer or a character in a script) described with the pronoun "she" would be classified as a woman.
+Gender can be a complicated identification for people, but English has two singular third person pronouns most often used for people, "he" and "she". In this analysis, for both the text data and the identification of gender for film writers, we have chosen to identify men and women with the pronouns "he" and "she". Using this type of classification, a transgender woman (either a writer or a character in a script) described with the pronoun "she" would be classified as a woman.
 
-Using these connections to who had a hand in creating
+Using this connection to who wrote these scripts, we can examine how writers who are men and women are portraying women in film. Do women writers portray women differently? How would the overall cultural representation of women be different if there were more women writing the movies we watch?
 
-*Rough mockup for viz of writer/director viz*
->>>>>>> e6e753b6a35353cd3565428aa5ef7ce2ef0b1079
 
 ```{r gender_ratio, echo = FALSE, dependson="pronoun_imdb", fig.width=8, fig.height=8}
 library(viridis)
@@ -171,50 +203,84 @@ he_gender_ratio <- pronoun_imdb %>%
            he_logratio = log2(he_ratio)) %>%
     arrange(desc(he_logratio))
 
-
 she_gender_ratio %>%
-    select(word2, she_ratio, she_logratio, she_total = total) %>%
+    top_n(300, total) %>%
+    group_by(she_logratio < 0) %>%
+    top_n(15, abs(she_logratio)) %>%
+    ungroup() %>%
+    mutate(word = reorder(word2, she_logratio)) %>%
+    ggplot(aes(word, she_logratio, color = she_logratio < 0)) +
+    geom_segment(aes(x = word, xend = word,
+                     y = 0, yend = she_logratio), 
+                 size = 1.1, alpha = 0.6) +
+    geom_point(size = 3.5) +
+    coord_flip() +
+    labs(x = NULL, 
+         y = "Relative use by writers who are women compared to men",
+         title = "Words used for women characters by women and men writers in film set directions",
+         subtitle = "From ~2000 films, of the top 300 words") +
+    scale_color_discrete(name = "", labels = c("More from women", "More from men")) +
+    scale_y_continuous(breaks = seq(-3, 3),
+                       labels = c("0.125x", "0.25x", "0.5x", 
+                                  "Same", "2x", "4x", "8x"))    
+
+```
+
+
+In our dataset, about 15% of film writers are women and about 85% are men. If women were more equitably represented in the ranks of Hollywood writers, our analysis indicates we would see fewer women in movies disappearing, reacting, and sobbing and more women loving, writing, and searching. And flinging things around, apparently!
+
+This plot shows one way to look at differences between writers who are men and women. Let's look a little deeper, though, to learn more. For example, do some of these differences hold true no matter what kind of character a women is writing? What is the interaction between writers who are men and women and charactes who are men and women?
+
+```{r gender_scatter, echo = FALSE, dependson="gender_ratio", fig.width=8, fig.height=8}
+writer_ratios <- she_gender_ratio %>%
+    select(word2, she_freq = she_ratio, she_logratio, she_total = total) %>%
     left_join(he_gender_ratio %>%
-                  select(word2, he_ratio, he_logratio, he_total = total)) %>%
-    top_n(300, she_total) %>%
+                  select(word2, he_freq = he_ratio, he_logratio, he_total = total)) %>%
+    top_n(300, she_total) 
+
+write_csv(writer_ratios, "./writer_ratios.csv")
+
+writer_ratios %>%
     ggplot(aes(she_logratio, he_logratio, label = word2,
                size = (she_total + he_total),
-               color = she_ratio / he_ratio)) +
-    annotate("text", x = 0.8, y = 0.8,
-             label = "Male and female writers\ndescribing women",
+               color = she_freq / he_freq)) +
+    annotate("text", x = 1.2, y = 1.2,
+             label = "Female writers\ndescribing men and women",
              family = "RobotoCondensed-Regular") +
-    annotate("text", x = -0.8, y = -0.8,
-             label = "Male and female writers\ndescribing men",
+    annotate("text", x = -1.2, y = -1.2,
+             label = "Male writers\ndescribing men and women",
              family = "RobotoCondensed-Regular") +
-     annotate("text", x = 0.8, y = -0.8,
+    annotate("text", x = 1.2, y = -1.2,
              label = "Female writers describing women\nMale writers decribing men",
              family = "RobotoCondensed-Regular") +
-     annotate("text", x = -0.8, y = 0.8,
+    annotate("text", x = -1.2, y = 1.2,
              label = "Female writers describing men\nMale writers decribing women",
              family = "RobotoCondensed-Regular") +
-   geom_vline(xintercept = 0, color = "gray50", lty = 2, size = 1.5) +
+    geom_vline(xintercept = 0, color = "gray50", lty = 2, size = 1.5) +
     geom_hline(yintercept = 0, color = "gray50", lty = 2, size = 1.5) +
     geom_text(family = "RobotoCondensed-Regular", size = 3, 
               vjust = 1.2, hjust = 1.2,
               check_overlap = TRUE) +
     geom_point(alpha = 0.5) +
     theme_void() +
-    scale_y_continuous(limits = c(-1.1, 1.1)) +
-    scale_x_continuous(limits = c(-1.1, 1.1)) +
+    scale_y_continuous(limits = c(-1.6, 1.6)) +
+    scale_x_continuous(limits = c(-1.6, 1.6)) +
     scale_color_viridis(end = 0.8) +
     theme(legend.position="none")
-
-
 ```
 
 *Hover for word for all points*
 
-Add bar plot for just how women are portrayed
+The size of the circle in this plot shows how often that word is used overall in film scripts; a word like "smiles" is used more often and a word like "understands" is used less often. Words close to an axis are used about the same with "he" and "she" for that kind of writer, and words far away from an axis exhibit more dramatic differences.
+
+There are some words that writers who are men and women are more likely to use, no matter what kind of character they are writing. In the upper right quadrant, we find the words that writers who are women are more likely to use. Writers who are women are more likely to write characters who sing, love, shift, sink into things, and burst into places. And lots of flinging! The lower left quadrant shows the words that writers who are men are more likely to use, for both male and female characters. Writers who are men are more likely to write characters who react, clutch, dive, shout, and emerge from places.
+
+In the other quadrants, we can see remarkable differences in how writers who are men and women portray characters who are men and women. If you look in the upper left quadrant, we find words that writers use in describing characters of the opposite gender. There are some romantic and sexual words here, like "kiss", "gaze", and "stroke", as well as words that imply, well, less happy outcomes, such as "disappears" and "died". The lower right quadrant shows us the words that writers use to portray characters the same gender as them. These characters wince, jerk, fumble, and perhaps most remarkably, write on screen. There are verbs here that are active but less explicitly testosterone-fueled than the lower left quadrant; writers of the same gender create characters who crawl, climb, play, and scan. These characters also hear and understand. A woman in a movie doing such things is a far cry from the giggling, squealing, blushing character we met at the beginning of this essay.
 
 
-## Word use changing with time
+```{r changing_women, eval = FALSE, echo = FALSE, dependson="pronoun_imdb", fig.width=8, fig.height=6}
+## word use changing with time
 
-```{r changing_women, echo = FALSE, dependson="pronoun_imdb", fig.width=8, fig.height=6}
 library(ggrepel)
 words_by_year <- pronoun_imdb %>%
     inner_join(metadata, by = "imdb") %>% ## to get year
@@ -277,11 +343,7 @@ ggplot(plot_words, aes(year, n / total, color = word2)) +
     facet_wrap(~Change, ncol = 2) +
     labs(x = NULL, y = "Word frequency",
          title = "Words paired with 'she' in script set directions")
-```
 
-
-```{r changing_men, echo = FALSE, dependson="pronoun_imdb", fig.width=8, fig.height=6}
-library(ggrepel)
 words_by_year <- pronoun_imdb %>%
     inner_join(metadata, by = "imdb") %>% ## to get year
     filter(word1 == "he",
@@ -346,4 +408,3 @@ ggplot(plot_words, aes(year, n / total, color = word2)) +
          title = "Words paired with 'he' in script set directions")
 ```
 
-*interactively switch from men to women, increasing to decreasing*
