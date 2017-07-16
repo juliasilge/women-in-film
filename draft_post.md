@@ -1,7 +1,7 @@
 ---
 title: "Women in Film"
 author: "Julia Silge"
-date: '2017-06-30'
+date: '2017-07-16'
 output: html_document
 ---
 
@@ -39,13 +39,17 @@ Example text snippets for "she squeals":
 
 
 
-## Impact of producers, writers, and directors
+## Impact of writers
 
-*Rough mockup for viz of writer/director viz*
+*Rough mockup for viz of writer viz*
+
 
 ![plot of chunk gender_ratio](figure/gender_ratio-1.png)
 
 *Hover for word for all points*
+
+Add bar plot for just how women are portrayed
+
 
 ## Word use changing with time
 
