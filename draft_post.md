@@ -28,17 +28,23 @@ Now let's look at the top 800 words, including those that are used about evenly 
 
 *Label all the outlier points, choose interesting other points to label. For all labeled points, have example text for interactive hover. For non-labeled points, show word on hover.*
 
-Example text snippets for "she squeals":
 
-
-|text                                                        |
-|:-----------------------------------------------------------|
-|She squeals.  Business is over.  He carries her across      |
-|He jumps on her. She squeals. He pretends to give her CPR.  |
-|which is running the news with the sound muted. She squeals |
-|She squeals, pained to leave her collection behind.         |
-|up the techno music.  She squeals and bounces away.  Dodge  |
-|He dumps cold champagne on her back.  She squeals and jumps |
+```
+## # A tibble: 49 x 1
+##        word
+##       <chr>
+##  1 snuggles
+##  2  giggles
+##  3  squeals
+##  4     sobs
+##  5    weeps
+##  6  blushes
+##  7   clings
+##  8    rocks
+##  9  shrieks
+## 10     hugs
+## # ... with 39 more rows
+```
 
 
 

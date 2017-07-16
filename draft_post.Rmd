@@ -68,10 +68,11 @@ pronoun_ratio <- pronoun_bigrams %>%
            she = (she + 1) / sum(she + 1),
            logratio = log2(she / he)) %>%
     arrange(desc(logratio)) %>%
-    filter(nchar(word2) > 1,
+    filter(nchar(word2) > 2,
            !(word2 %in% c("door", "ad", "he", "1s", "lp",
                           "car", "himself", "pans", "dead", 
-                          "queen", "back", "too", "were")))
+                          "queen", "back", "too", "were",
+                          "doesn", "half")))
 
 pronoun_ratio %>%
     top_n(800, total) %>%
@@ -123,15 +124,20 @@ pronoun_ratio %>%
 
 *Label all the outlier points, choose interesting other points to label. For all labeled points, have example text for interactive hover. For non-labeled points, show word on hover.*
 
-Example text snippets for "she squeals":
-
 ```{r, echo = FALSE, dependson="pronoun_ratio"}
-all_lines %>%
-    filter(str_detect(text, "She squeals")) %>%
-    distinct(scriptID, text) %>%
-    select(text) %>%
-    tail() %>%
-    kable()
+example_text <- pronoun_ratio %>% 
+    top_n(800, total) %>% 
+    head(20) %>% 
+    select(word = word2) %>%
+    bind_rows(data_frame(word = c("cleans", "moans", "laughs", "twirls",
+                                  "lingers", "bursts", "retreats", "answer",
+                                  "creeps"))) %>%
+    bind_rows(pronoun_ratio %>% 
+                  top_n(800, total) %>% 
+                  tail(20) %>% 
+                  select(word = word2))
+
+example_text
 ```
 
 
@@ -229,7 +235,7 @@ she_gender_ratio %>%
 
 In our dataset, about 15% of film writers are women and about 85% are men. If women were more equitably represented in the ranks of Hollywood writers, our analysis indicates we would see fewer women in movies disappearing, reacting, and sobbing and more women loving, writing, and searching. And flinging things around, apparently!
 
-This plot shows one way to look at differences between writers who are men and women. Let's look a little deeper, though, to learn more. For example, do some of these differences hold true no matter what kind of character a women is writing? What is the interaction between writers who are men and women and charactes who are men and women?
+This plot shows one way to look at differences between writers who are men and women. Let's look a little deeper, though, to learn more. For example, do some of these differences hold true no matter what kind of character a women is writing? What is the interaction between *writers* who are men and women and *characters* who are men and women?
 
 ```{r gender_scatter, echo = FALSE, dependson="gender_ratio", fig.width=8, fig.height=8}
 writer_ratios <- she_gender_ratio %>%
