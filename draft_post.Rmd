@@ -73,7 +73,8 @@ pronoun_ratio <- pronoun_bigrams %>%
                           "car", "himself", "pans", "dead", 
                           "queen", "back", "too", "were",
                           "doesn", "half", "with", "been", 
-                          "who", "she", "the")))
+                          "who", "she", "the", "very",
+                          "and", "didn")))
 
 pronoun_ratio %>%
     top_n(800, total) %>%
@@ -98,7 +99,7 @@ pronoun_ratio %>%
 
 ```
 
-There are dramatic differences in the kinds of words we see here. In movies, women are more likely to snuggle, giggle, squeal, and sob while men are more likely to gallop, shoot, howl, and kill. We see evidence here of the tropes and storytelling conventions that propel so many films, and how men, women, and their relationships are often portrayed.
+There are dramatic differences in the kinds of words we see here. In movies, women are more likely to snuggle, giggle, squeal, and sob while men are more likely to strap things on, gallop, shoot, howl, and kill. We see evidence here of the tropes and storytelling conventions that propel so many films, and how men, women, and their relationships are often portrayed.
 
 Now let's look at the top 800 words, including those that are used about evenly after "he" and "she".
 
@@ -131,7 +132,7 @@ example_words <- pronoun_ratio %>%
     head(20) %>% 
     select(word = word2) %>%
     bind_rows(data_frame(word = c("cleans", "moans", "laughs", "twirls",
-                                  "lingers", "bursts", "retreats", "answer",
+                                  "lingers", "bursts", "retreats", "answers",
                                   "creeps", "types", "attacks", "inhales",
                                   "stares", "grimaces", "suddenly", "stops",
                                   "ducks", "waits", "stomps", "remembers",
@@ -143,8 +144,8 @@ example_words <- pronoun_ratio %>%
                   tail(20) %>% 
                   select(word = word2))
 
-pronouns <- c(sample(c("she", "She"), size = 36, replace = TRUE), 
-              sample(c("he", "He"), size = 36, replace = TRUE))
+pronouns <- c(sample(c(" she", "She"), size = 36, replace = TRUE), 
+              sample(c(" he", "He"), size = 36, replace = TRUE))
 
 example_text <- example_words %>%
     mutate(pronoun = pronouns,
@@ -299,7 +300,7 @@ writer_ratios %>%
 
 The size of the circle in this plot shows how often that word is used overall in film scripts; a word like "smiles" is used more often and a word like "understands" is used less often. Words close to an axis are used about the same with "he" and "she" for that kind of writer, and words far away from an axis exhibit more dramatic differences.
 
-There are some words that writers who are men and women are more likely to use, no matter what kind of character they are writing. In the upper right quadrant, we find the words that writers who are women are more likely to use. Writers who are women are more likely to write characters who sing, love, shift, sink into things, and burst into places. And lots of flinging! The lower left quadrant shows the words that writers who are men are more likely to use, for both male and female characters. Writers who are men are more likely to write characters who react, clutch, dive, shout, and emerge from places.
+There are some words that writers who are men and women are more likely to use, no matter what kind of character they are writing. In the upper right quadrant, we find the words that writers who are women are more likely to use. Writers who are women are more likely to write characters who sing, love, shift, sink into things, and burst into places. And lots of flinging! The lower left quadrant shows the words that writers who are men are more likely to use, for both male and female characters. Writers who are men are more likely to write characters who react, clutch, dive, shout, ducks, and emerge from places.
 
 In the other quadrants, we can see remarkable differences in how writers who are men and women portray characters who are men and women. If you look in the upper left quadrant, we find words that writers use in describing characters of the opposite gender. There are some romantic and sexual words here, like "kiss", "gaze", and "stroke", as well as words that imply, well, less happy outcomes, such as "disappears" and "died". The lower right quadrant shows us the words that writers use to portray characters the same gender as them. These characters wince, jerk, fumble, and perhaps most remarkably, write on screen. There are verbs here that are active but less explicitly testosterone-fueled than the lower left quadrant; writers of the same gender create characters who crawl, climb, play, and scan. These characters also hear and understand. A woman in a movie doing such things is a far cry from the giggling, squealing, blushing character we met at the beginning of this essay.
 
