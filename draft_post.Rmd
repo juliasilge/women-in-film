@@ -72,7 +72,8 @@ pronoun_ratio <- pronoun_bigrams %>%
            !(word2 %in% c("door", "ad", "he", "1s", "lp",
                           "car", "himself", "pans", "dead", 
                           "queen", "back", "too", "were",
-                          "doesn", "half")))
+                          "doesn", "half", "with", "been", 
+                          "who", "she", "the")))
 
 pronoun_ratio %>%
     top_n(800, total) %>%
@@ -125,19 +126,38 @@ pronoun_ratio %>%
 *Label all the outlier points, choose interesting other points to label. For all labeled points, have example text for interactive hover. For non-labeled points, show word on hover.*
 
 ```{r, echo = FALSE, dependson="pronoun_ratio"}
-example_text <- pronoun_ratio %>% 
+example_words <- pronoun_ratio %>% 
     top_n(800, total) %>% 
     head(20) %>% 
     select(word = word2) %>%
     bind_rows(data_frame(word = c("cleans", "moans", "laughs", "twirls",
                                   "lingers", "bursts", "retreats", "answer",
-                                  "creeps"))) %>%
+                                  "creeps", "types", "attacks", "inhales",
+                                  "stares", "grimaces", "suddenly", "stops",
+                                  "ducks", "waits", "stomps", "remembers",
+                                  "scrambles", "splashes", "jerks", "throws",
+                                  "knows", "exhales", "coughs", "flops",
+                                  "crouches", "staggers", "forgets", "slashes"))) %>%
     bind_rows(pronoun_ratio %>% 
                   top_n(800, total) %>% 
                   tail(20) %>% 
                   select(word = word2))
 
-example_text
+pronouns <- c(sample(c("she", "She"), size = 36, replace = TRUE), 
+              sample(c("he", "He"), size = 36, replace = TRUE))
+
+example_text <- example_words %>%
+    mutate(pronoun = pronouns,
+           phrase = str_c(pronoun, word, sep = " ")) %>%
+    pull(phrase) %>%
+    map_df(function(x) all_lines %>%
+               filter(str_detect(text, x)) %>%
+               sample_n(1) %>%
+               select(text)) %>%
+    bind_cols(example_words) %>%
+    select(word, text)
+
+write_csv(example_text, "./example_texts.csv")
 ```
 
 

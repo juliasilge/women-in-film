@@ -29,22 +29,6 @@ Now let's look at the top 800 words, including those that are used about evenly 
 *Label all the outlier points, choose interesting other points to label. For all labeled points, have example text for interactive hover. For non-labeled points, show word on hover.*
 
 
-```
-## # A tibble: 49 x 1
-##        word
-##       <chr>
-##  1 snuggles
-##  2  giggles
-##  3  squeals
-##  4     sobs
-##  5    weeps
-##  6  blushes
-##  7   clings
-##  8    rocks
-##  9  shrieks
-## 10     hugs
-## # ... with 39 more rows
-```
 
 
 
@@ -67,7 +51,7 @@ Using this connection to who wrote these scripts, we can examine how writers who
 
 In our dataset, about 15% of film writers are women and about 85% are men. If women were more equitably represented in the ranks of Hollywood writers, our analysis indicates we would see fewer women in movies disappearing, reacting, and sobbing and more women loving, writing, and searching. And flinging things around, apparently!
 
-This plot shows one way to look at differences between writers who are men and women. Let's look a little deeper, though, to learn more. For example, do some of these differences hold true no matter what kind of character a women is writing? What is the interaction between writers who are men and women and charactes who are men and women?
+This plot shows one way to look at differences between writers who are men and women. Let's look a little deeper, though, to learn more. For example, do some of these differences hold true no matter what kind of character a women is writing? What is the interaction between *writers* who are men and women and *characters* who are men and women?
 
 ![plot of chunk gender_scatter](figure/gender_scatter-1.png)
 
