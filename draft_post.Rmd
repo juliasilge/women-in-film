@@ -152,7 +152,7 @@ example_text <- example_words %>%
            phrase = str_c(pronoun, word, sep = " ")) %>%
     pull(phrase) %>%
     map_df(function(x) all_lines %>%
-               filter(nchar(text) < 140,
+               filter(nchar(text) < 180,
                       str_detect(text, x)) %>%
                sample_n(1) %>%
                select(text)) %>%
