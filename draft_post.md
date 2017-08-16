@@ -37,25 +37,22 @@ Now let's look at the top 800 words, including those that are used about evenly 
 
 ## Impact of writers
 
-*Rough mockup for viz of writer viz*
-
 Hollywood can be a tough place to work as a creative woman, either writing, directing, or producing films. We can use our text mining approach to explore the impact that the gender of a writer has on how characters are portrayed. We used IMDB biographies, pictures, and names to manually classify the genders of writers for our film script dataset. 
 
 Gender can be a complicated identification for people, but English has two singular third person pronouns most often used for people, "he" and "she". In this analysis, for both the text data and the identification of gender for film writers, we have chosen to identify men and women with the pronouns "he" and "she". Using this type of classification, a transgender woman (either a writer or a character in a script) described with the pronoun "she" would be classified as a woman.
 
 Using this connection to who wrote these scripts, we can examine how writers who are men and women are portraying women in film. Do women writers portray women differently? How would the overall cultural representation of women be different if there were more women writing the movies we watch?
 
+*Rough mockup for viz of writer viz*
 
-![plot of chunk gender_ratio](figure/gender_ratio-1.png)
+![plot of chunk gender_scatter](figure/gender_scatter-1.png)
 
+*Hover for word for all points*
 
 In our dataset, about 15% of film writers are women and about 85% are men. If women were more equitably represented in the ranks of Hollywood writers, our analysis indicates we would see fewer women in movies disappearing, reacting, and sobbing and more women loving, writing, and searching. And flinging things around, apparently!
 
 This plot shows one way to look at differences between writers who are men and women. Let's look a little deeper, though, to learn more. For example, do some of these differences hold true no matter what kind of character a woman is writing? What is the interaction between *writers* who are men and women and *characters* who are men and women?
 
-![plot of chunk gender_scatter](figure/gender_scatter-1.png)
-
-*Hover for word for all points*
 
 The size of the circle in this plot shows how often that word is used overall in film scripts; a word like "smiles" is used more often and a word like "understands" is used less often. Words close to an axis are used about the same with "he" and "she" for that kind of writer, and words far away from an axis exhibit more dramatic differences.
 

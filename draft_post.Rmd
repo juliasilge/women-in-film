@@ -193,14 +193,13 @@ pronoun_imdb <- pronoun_bigrams %>%
 
 ## Impact of writers
 
-*Rough mockup for viz of writer viz*
-
 Hollywood can be a tough place to work as a creative woman, either writing, directing, or producing films. We can use our text mining approach to explore the impact that the gender of a writer has on how characters are portrayed. We used IMDB biographies, pictures, and names to manually classify the genders of writers for our film script dataset. 
 
 Gender can be a complicated identification for people, but English has two singular third person pronouns most often used for people, "he" and "she". In this analysis, for both the text data and the identification of gender for film writers, we have chosen to identify men and women with the pronouns "he" and "she". Using this type of classification, a transgender woman (either a writer or a character in a script) described with the pronoun "she" would be classified as a woman.
 
 Using this connection to who wrote these scripts, we can examine how writers who are men and women are portraying women in film. Do women writers portray women differently? How would the overall cultural representation of women be different if there were more women writing the movies we watch?
 
+*Rough mockup for viz of writer viz*
 
 ```{r gender_scatter, echo = FALSE, dependson="pronoun_imdb", fig.width=8, fig.height=8}
 library(viridis)
@@ -224,7 +223,6 @@ writer_ratios <- writer_counts %>%
     arrange(desc(female_logratio))
 
 write_csv(writer_ratios, "./writer_ratios.csv")
-           
            
 writer_ratios %>%
     ggplot(aes(female_logratio, male_logratio, label = word2,
