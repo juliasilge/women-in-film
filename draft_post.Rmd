@@ -50,13 +50,25 @@ all_lines <- sample_tsvs %>%
                separate(lines, c("line", "text"), sep = "\t") %>%
                mutate(scriptID = as.integer(str_extract(.x, "[\\d]+"))))
 
+stop_words_vector <- stop_words %>% 
+                 filter(lexicon == "snowball") %>% 
+                 pull(word)
+
 pronoun_bigrams <- all_lines %>%
     unnest_tokens(bigram, text, token = "ngrams", 
                   n = 2, collapse = FALSE) %>%
     separate(bigram, c("word1", "word2"), sep = " ") %>%
     filter(word1 %in% c("he", "she")) %>%
     select(scriptID, line, word1, word2) %>%
-    filter(!str_detect(word2, "’|'"))
+    filter(!str_detect(word2, "’|'"),
+           nchar(word2) > 2,
+           !(word2 %in% c("door", "ad", "he", "1s", "lp",
+                          "car", "himself", "pans", "dead", 
+                          "queen", "back", "too", "were",
+                          "doesn", "half", "with", "been", 
+                          "who", "she", "the", "very",
+                          "and", "didn")),
+           !(word2 %in% stop_words_vector))
 ```
 
 ```{r pronoun_ratio, echo = FALSE, dependson="pronoun_bigrams", fig.width=8, fig.height=8}
@@ -67,14 +79,7 @@ pronoun_ratio <- pronoun_bigrams %>%
            he = (he + 1) / sum(he + 1),
            she = (she + 1) / sum(she + 1),
            logratio = log2(she / he)) %>%
-    arrange(desc(logratio)) %>%
-    filter(nchar(word2) > 2,
-           !(word2 %in% c("door", "ad", "he", "1s", "lp",
-                          "car", "himself", "pans", "dead", 
-                          "queen", "back", "too", "were",
-                          "doesn", "half", "with", "been", 
-                          "who", "she", "the", "very",
-                          "and", "didn")))
+    arrange(desc(logratio))
 
 pronoun_ratio %>%
     top_n(800, total) %>%
@@ -142,21 +147,22 @@ example_words <- pronoun_ratio %>%
     bind_rows(pronoun_ratio %>% 
                   top_n(800, total) %>% 
                   tail(20) %>% 
-                  select(word = word2))
+                  select(word = word2)) %>%
+    pull(word) %>% 
+    map(rep, 20) %>% 
+    flatten_chr()
 
-pronouns <- c(sample(c(" she", "She"), size = 36, replace = TRUE), 
-              sample(c(" he", "He"), size = 36, replace = TRUE))
+pronouns <- c(sample(c(" she", "She"), size = 720, replace = TRUE), 
+              sample(c(" he", "He"), size = 720, replace = TRUE))
 
-example_text <- example_words %>%
+example_text <- data_frame(word = example_words) %>%
     mutate(pronoun = pronouns,
-           phrase = str_c(pronoun, word, sep = " ")) %>%
-    pull(phrase) %>%
-    map_df(function(x) all_lines %>%
-               filter(nchar(text) < 180,
-                      str_detect(text, x)) %>%
-               sample_n(1) %>%
-               select(text)) %>%
-    bind_cols(example_words) %>%
+           phrase = str_c(pronoun, word, sep = " "),
+           text = map_chr(phrase, function(x) all_lines %>%
+                              filter(nchar(text) < 180,
+                                     str_detect(text, x)) %>%
+                              sample_n(1) %>%
+                              pull(text))) %>%
     select(word, text)
 
 write_csv(example_text, "./example_texts.csv")
@@ -196,87 +202,39 @@ Gender can be a complicated identification for people, but English has two singu
 Using this connection to who wrote these scripts, we can examine how writers who are men and women are portraying women in film. Do women writers portray women differently? How would the overall cultural representation of women be different if there were more women writing the movies we watch?
 
 
-```{r gender_ratio, echo = FALSE, dependson="pronoun_imdb", fig.width=8, fig.height=8}
+```{r gender_scatter, echo = FALSE, dependson="pronoun_imdb", fig.width=8, fig.height=8}
 library(viridis)
 
-she_gender_ratio <- pronoun_imdb %>%
-    inner_join(gender, by = "imdb") %>% ## to get gender of writers
-    filter(word1 == "she",
-           str_detect(word2, "[a-z]+"),
-           nchar(word2) > 2) %>%
+writer_counts <- pronoun_imdb %>%
+    inner_join(gender, by = "imdb") %>%
     group_by(word2) %>%
     mutate(total = n_distinct(scriptID)) %>%
-    ungroup %>%
-    count(gender, word2, total) %>%
-    spread(gender, n, fill = 0) %>%
-    mutate(female = (female + 1) / sum(female + 1),
-           male = (male + 1) / sum(male + 1),
-           she_ratio = female / male,
-           she_logratio = log2(she_ratio)) %>%
-    arrange(desc(she_logratio))
+    ungroup %>%    
+    count(gender, word1, word2, total) %>%
+    unite(about, gender, word1) %>%
+    top_n(1600, total) %>%
+    spread(about, n, fill = 0)
 
-he_gender_ratio <- pronoun_imdb %>%
-    inner_join(gender, by = "imdb") %>% ## to get gender of writers, etc
-    filter(word1 == "he",
-           str_detect(word2, "[a-z]+"),
-           nchar(word2) > 2) %>%
-    group_by(word2) %>%
-    mutate(total = n_distinct(scriptID)) %>%
-    ungroup %>%
-    count(gender, word2, total) %>%
-    spread(gender, n, fill = 0) %>%
-    mutate(female = (female + 1) / sum(female + 1),
-           male = (male + 1) / sum(male + 1),
-           he_ratio = female / male,
-           he_logratio = log2(he_ratio)) %>%
-    arrange(desc(he_logratio))
-
-she_gender_ratio %>%
-    top_n(300, total) %>%
-    group_by(she_logratio < 0) %>%
-    top_n(15, abs(she_logratio)) %>%
-    ungroup() %>%
-    mutate(word = reorder(word2, she_logratio)) %>%
-    ggplot(aes(word, she_logratio, color = she_logratio < 0)) +
-    geom_segment(aes(x = word, xend = word,
-                     y = 0, yend = she_logratio), 
-                 size = 1.1, alpha = 0.6) +
-    geom_point(size = 3.5) +
-    coord_flip() +
-    labs(x = NULL, 
-         y = "Relative use by writers who are women compared to men",
-         title = "Words used for women characters by women and men writers in film set directions",
-         subtitle = "From ~2000 films, of the top 300 words") +
-    scale_color_discrete(name = "", labels = c("More from women", "More from men")) +
-    scale_y_continuous(breaks = seq(-3, 3),
-                       labels = c("0.125x", "0.25x", "0.5x", 
-                                  "Same", "2x", "4x", "8x"))    
-
-```
-
-
-In our dataset, about 15% of film writers are women and about 85% are men. If women were more equitably represented in the ranks of Hollywood writers, our analysis indicates we would see fewer women in movies disappearing, reacting, and sobbing and more women loving, writing, and searching. And flinging things around, apparently!
-
-This plot shows one way to look at differences between writers who are men and women. Let's look a little deeper, though, to learn more. For example, do some of these differences hold true no matter what kind of character a woman is writing? What is the interaction between *writers* who are men and women and *characters* who are men and women?
-
-```{r gender_scatter, echo = FALSE, dependson="gender_ratio", fig.width=8, fig.height=8}
-writer_ratios <- she_gender_ratio %>%
-    select(word2, she_freq = she_ratio, she_logratio, she_total = total) %>%
-    left_join(he_gender_ratio %>%
-                  select(word2, he_freq = he_ratio, he_logratio, he_total = total)) %>%
-    top_n(300, she_total) 
+writer_ratios <- writer_counts %>%
+    mutate_at(vars(female_he:male_she), funs((. + 1) / sum(. + 1))) %>%
+    mutate(female_ratio = female_she / female_he,
+           female_logratio = log2(female_ratio),
+           male_ratio = male_she / male_he,
+           male_logratio = log2(male_ratio)) %>%
+    arrange(desc(female_logratio))
 
 write_csv(writer_ratios, "./writer_ratios.csv")
-
+           
+           
 writer_ratios %>%
-    ggplot(aes(she_logratio, he_logratio, label = word2,
-               size = (she_total + he_total),
-               color = she_freq / he_freq)) +
+    ggplot(aes(female_logratio, male_logratio, label = word2,
+               size = total,
+               color = female_ratio / male_ratio)) +
     annotate("text", x = 1.2, y = 1.2,
-             label = "Female writers\ndescribing men and women",
+             label = "All writers\ndescribing women",
              family = "RobotoCondensed-Regular") +
     annotate("text", x = -1.2, y = -1.2,
-             label = "Male writers\ndescribing men and women",
+             label = "All writers\ndescribing men",
              family = "RobotoCondensed-Regular") +
     annotate("text", x = 1.2, y = -1.2,
              label = "Female writers describing women\nMale writers decribing men",
@@ -298,6 +256,11 @@ writer_ratios %>%
 ```
 
 *Hover for word for all points*
+
+In our dataset, about 15% of film writers are women and about 85% are men. If women were more equitably represented in the ranks of Hollywood writers, our analysis indicates we would see fewer women in movies disappearing, reacting, and sobbing and more women loving, writing, and searching. And flinging things around, apparently!
+
+This plot shows one way to look at differences between writers who are men and women. Let's look a little deeper, though, to learn more. For example, do some of these differences hold true no matter what kind of character a woman is writing? What is the interaction between *writers* who are men and women and *characters* who are men and women?
+
 
 The size of the circle in this plot shows how often that word is used overall in film scripts; a word like "smiles" is used more often and a word like "understands" is used less often. Words close to an axis are used about the same with "he" and "she" for that kind of writer, and words far away from an axis exhibit more dramatic differences.
 
